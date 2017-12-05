@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO">
+
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%highlight{%d{HH:mm:ss.SSS} %-5level %logger{36} - [%marker] %msg%n%throwable}{FATAL=white, ERROR=red, WARN=blue, INFO=black, DEBUG=green, TRACE=blue}"/>
+        </Console>
+
+        <Kafka name="Kafka" topic="test">
+            <JSONLayout compact="true" locationInfo="true" properties="true" propertiesAsList="true"/>  <!--pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} %msg%n"/-->
+            <Property name="bootstrap.servers">localhost:9092</Property>
+        </Kafka>
+    </Appenders>
+
+    <Loggers>
+        <Root level="ALL">
+            <AppenderRef ref="Kafka"/>
+            <AppenderRef ref="Console"/>
+        </Root>
+
+
+    </Loggers>
+
+</Configuration>
