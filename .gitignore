@@ -1,0 +1,8 @@
+
+/target/
+/supervision/
+/.idea/
+/chkPt/
+/logs/
+/spark-warehouse/
+/errors/
