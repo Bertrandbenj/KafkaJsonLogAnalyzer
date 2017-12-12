@@ -16,14 +16,20 @@
  */
 
 // scalastyle:off println
-package org.nimajneb.kafka
+package com.nimajneb.kafka
 
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.logging.log4j._
 import org.apache.logging.log4j.core.layout._
 import org.apache.logging.log4j.scala._
-import org.apache.spark.sql.{SQLContext, SaveMode, SparkSession}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.execution.streaming.FileStreamSource.Timestamp
+import org.apache.spark.sql.types._
+import org.apache.spark.sql._
+import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka010._
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 /**
   * Consumes messages from one or more topics in Kafka and does wordcount.
@@ -42,11 +48,14 @@ object DKafkaConsumer extends Logging{
   Utils.setStreamingLogLevels()
   val spark = SparkSession
     .builder
-    .master("local[2]")
-    .appName("DirectKafkaWordCount")
+    .master("local[*]")
+    .appName("KafkaJsonLogParser")
     .getOrCreate()
+  import spark.implicits._
   spark.sparkContext.addJar("/home/ben/.m2/repository/org/apache/spark/spark-streaming-kafka-0-10_2.11/2.2.0/spark-streaming-kafka-0-10_2.11-2.2.0.jar")
   spark.sparkContext.addJar("/home/ben/.m2/repository/org/apache/kafka/kafka-clients/0.10.0.0/kafka-clients-0.10.0.0.jar")
+  spark.sparkContext.addJar("target/kafkalogging-1.0.jar")
+
   logger.trace(spark.sparkContext.listJars().mkString("\n"))
 
   def main(args: Array[String]) {
@@ -90,8 +99,37 @@ object DKafkaConsumer extends Logging{
       LocationStrategies.PreferConsistent,
       ConsumerStrategies.Subscribe[String, String](topicsSet, kafkaParams))
 
-    logger.info(DKConsumer,"messages.id="+messages.id+",topics="+topicsSet)
+    logger.info(DKConsumer,"messages.id="+messages.id+";topics="+topicsSet)
 
+
+    val df = spark
+      .readStream
+      .format("kafka")
+      .option("kafka.bootstrap.servers", brokers)
+      .option("subscribe", topics)
+      .load()
+
+    logger.debug(DKConsumer,"df="+df)
+    import DFUtils._
+    val req = DKafkaSupervision
+      .recursiveExplodeMarkers(
+        df.selectExpr("CAST(value AS STRING)").as[String]
+        .select(from_json($"value", JsonLogSchema.struct).as("data"))
+        .select("data.*")
+      )
+      .asTime()
+    logger.debug(DKConsumer,"req="+req)
+    val t1 = req.log
+
+    val t2 = req
+      .propertiesLikeMessage("project1.joinAandB.count")
+      .log
+
+    t1.awaitTermination()
+    t2.awaitTermination()
+
+
+    //messages.map(from_json(_.value).cast("string"), struct)
 
     val lines = messages.map(_.value.trim())
     logger.info(DKConsumer,"lines.count="+lines.count())
@@ -105,6 +143,16 @@ object DKafkaConsumer extends Logging{
     ssc.start()
     ssc.awaitTermination()
     logger.traceExit(DKConsumer)
+  }
+
+  implicit class DFImpr (val df: DataFrame){
+    def log(): StreamingQuery = {
+      df.writeStream
+      .format("console")
+      .option("truncate","false")
+      .start()
+      //.awaitTermination()
+    }
   }
 }
 // scalastyle:on println

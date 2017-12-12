@@ -1,12 +1,12 @@
-package org.nimajneb.kafka
+package com.nimajneb.kafka
 
 import org.apache.logging.log4j.{Marker, MarkerManager}
 import org.apache.logging.log4j.scala.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.streaming.dstream.DStream
-import org.nimajneb.kafka.DKafkaConsumer.spark
-import org.nimajneb.kafka.DKafkaConsumer.spark.implicits._
+import DKafkaConsumer.spark
+import DKafkaConsumer.spark.implicits._
 
 
 

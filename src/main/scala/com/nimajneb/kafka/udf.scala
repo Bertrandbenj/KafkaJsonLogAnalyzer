@@ -1,5 +1,6 @@
-package org.nimajneb
-import org.nimajneb.kafka.DKafkaConsumer.spark
+package com.nimajneb.kafka
+
+import DKafkaConsumer.spark
 import org.apache.logging.log4j.Marker
 
 object udf {

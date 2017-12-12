@@ -1,4 +1,4 @@
-package org.nimajneb.kafka
+package com.nimajneb.kafka
 
 import org.apache.logging.log4j.{Marker, MarkerManager}
 import org.apache.logging.log4j.scala._
@@ -6,10 +6,10 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.LongType
-import org.apache.spark.streaming.dstream.DStream
-import org.nimajneb.kafka.DKafkaConsumer.spark.implicits._
-import org.nimajneb.kafka.DKafkaConsumer.spark
-import org.nimajneb.kafka.DFUtils._
+import org.apache.spark.streaming.dstream.{DStream, InputDStream}
+import DKafkaConsumer.spark.implicits._
+import DKafkaConsumer.spark
+import DFUtils._
 
 /**
   * root
@@ -67,17 +67,15 @@ object DKafkaSupervision extends Logging {
         val json = spark.read.json(rdd).cache
         val time = json.sort("timeMillis").select("timeMillis").first()
         val messages = json.clean().cache()
-
+        messages.write.partitionBy("markers").parquet("LogExtract.parquet")
 
         val parseMarkers = recursiveExplodeMarkers(messages)
         parseMarkers.show()
-        parseMarkers.select("level", "markers", "time", "message", "src", "loggerName")
-          .toExcel(time + "/Markers.xlsx")
 
-        val properties = parseMarkers.propertiesLikeMessage
+
+        val properties = parseMarkers.propertiesLikeMessage("in.count")
         properties.printSchema()
         properties.show()
-        properties.toExcel(time +"1/Properties.xlsx")
       }
 
     })
@@ -114,25 +112,6 @@ object DKafkaSupervision extends Logging {
   }
 
 
-  import org.nimajneb.kafka.DFUtils._
-
-  def propertiesLikeMessage(df: DataFrame): DataFrame = {
-
-    df.select("timeMillis", "markers", "message")
-      .withColumn("time", from_unixtime($"timeMillis" / 1000))
-      .where($"message".like("%=%") && $"markers".contains("SUPERVISION"))
-      .withColumn("_tmp", split($"message", "="))
-      .withColumn("properties", $"_tmp".getItem(0))
-      .withColumn("value", $"_tmp".getItem(1))
-      .drop("_tmp", "message", "timeMillis")
-      .groupBy("time", "markers")
-      .pivot("properties")
-      .agg(concat_ws(",", collect_list($"value")).alias("values"))
-    //.agg(count($"value"))
-
-  }
-
-
   /** Transform nested struct marker
     *
     * The nested structure of Log4J markers may vary on each batch of data,
@@ -146,13 +125,13 @@ object DKafkaSupervision extends Logging {
     val cols = df.columns
     val hasMarkersColumn = df.hasColumn("markers")
     val hasParents = df.hasColumn("marker.parents")
-    val hasMarkerName = df.hasColumn("marker.name")
+
     logger.traceEntry()
     logger.debug(DKSup, "recursiveExplodeMarkers.in.hasMarkerName=" + hasParents)
     logger.debug(DKSup, "recursiveExplodeMarkers.in.hasParentCol=" + hasParents)
     logger.debug(DKSup, "recursiveExplodeMarkers.in.hasMarkersCol=" + hasMarkersColumn)
     logger.debug(DKSup, "recursiveExplodeMarkers.in.cols=" + cols.mkString(","))
-    logger.debug(DKSup, "recursiveExplodeMarkers.in.count=" + df.count)
+//    logger.debug(DKSup, "recursiveExplodeMarkers.in.count=" + df.count)
 
     val addMarkersCol = if (hasMarkersColumn) df else df.withColumn("markers", lit(null))
     //addMarkersCol.select("markers","marker").printSchema()

@@ -1,4 +1,4 @@
-package org.nimajneb.kafka
+package com.nimajneb.kafka
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
@@ -30,21 +30,27 @@ object DFUtils {
     def sourceToString(): DataFrame = {
       df.withColumn("src", concat($"source.class", $"source.method", lit(":"), $"source.line"))
         .drop("source")
-
     }
 
-
-    def propertiesLikeMessage(): DataFrame = {
-      df.select("time", "markers", "message")
+    /**
+      * Require Spark > 2.3.0-SNAP to pivot
+      * @param prop
+      * @return
+      */
+    def propertiesLikeMessage(prop: String): DataFrame = {
+      df.printSchema()
+      df.select($"time", $"markers", $"message")
         .where($"message".like("%=%") && $"markers".contains("SUPERVISION"))
+        .withColumn("properties", explode(split($"message",";")))
         .withColumn("_tmp", split($"message", "="))
-        .withColumn("properties", $"_tmp".getItem(0))
+        .withColumn("prop", $"_tmp".getItem(0))
+        .filter($"prop".contains(prop))
         .withColumn("value", $"_tmp".getItem(1))
         .drop("_tmp", "message")
-        .groupBy("time", "markers")
-        .pivot("properties")
-        .agg(concat_ws(",", collect_list($"value")).alias("values"))
-      //.agg(count($"value"))
+        .groupBy("time", "markers","prop")
+        //.pivot("properties",Seq(1))
+        //.agg(concat_ws(",", collect_list($"value")).alias("values"))
+        .agg(sum($"value"))
 
     }
 
@@ -54,6 +60,15 @@ object DFUtils {
         .sourceToString()
     }
 
+    def clean2(): DataFrame = {
+      df.clean2()
+    }
+
+    /**
+      * ex : .toExcel(path + "/Markers.xlsx")
+      *
+      * @param path
+      */
     def toExcel(path: String): Unit = {
       df.write
         .format("com.crealytics.spark.excel")

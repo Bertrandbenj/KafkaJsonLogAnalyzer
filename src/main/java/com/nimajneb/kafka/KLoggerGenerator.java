@@ -1,4 +1,4 @@
-package org.nimajneb.kafka;
+package com.nimajneb.kafka;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -49,7 +49,7 @@ public class KLoggerGenerator {
 
     private static void alert(String message) {
         while (true) {
-            LOGGER.error(ALERT, message + " " + (1000+r.nextInt(1000)), new Exception("HUHU"));
+            LOGGER.error(ALERT, message + "=" + (1000+r.nextInt(1000)), new Exception("HUHU"));
             try {
                 Thread.sleep(5000 + r.nextInt(1000));
             } catch (InterruptedException e) {
@@ -60,7 +60,7 @@ public class KLoggerGenerator {
 
     private static void supervise( String message ) {
         while (true) {
-            LOGGER.info(PROJECT, message + " " + (1000+r.nextInt(1000)));
+            LOGGER.info(PROJECT, message + "=" + (1000+r.nextInt(1000)));
             try {
                 Thread.sleep(2000 + r.nextInt(1000));
             } catch (InterruptedException e) {

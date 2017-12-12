@@ -15,9 +15,11 @@
     <Loggers>
         <Root level="ALL">
             <AppenderRef ref="Kafka"/>
-            <AppenderRef ref="Console"/>
         </Root>
 
+        <Root level="WARN">
+            <AppenderRef ref="COnsole"/>
+        </Root>
 
     </Loggers>
 

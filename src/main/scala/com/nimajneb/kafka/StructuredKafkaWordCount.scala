@@ -1,4 +1,4 @@
-package org.nimajneb.kafka
+package com.nimajneb.kafka
 
 import java.util.UUID
 

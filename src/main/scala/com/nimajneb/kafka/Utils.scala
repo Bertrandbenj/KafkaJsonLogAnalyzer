@@ -1,4 +1,4 @@
-package org.nimajneb.kafka
+package com.nimajneb.kafka
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.internal.Logging
